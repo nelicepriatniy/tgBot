@@ -61,12 +61,14 @@ python main.py
 
 ## Запуск на сервере (systemd)
 
-Шаблон: `deploy/dyhanie-bot.service`. В нём замени `REPLACE_USER` и путь на свои.
+Шаблон: `deploy/dyhanie-bot.service` (пути под `/root/tgBot`).
 
 ```bash
-# на сервере: код, venv, .env уже на месте
+# на сервере в /root/tgBot:
+python3 -m venv .venv
+.venv/bin/pip install -r requirements.txt
+
 sudo cp deploy/dyhanie-bot.service /etc/systemd/system/dyhanie-bot.service
-sudo nano /etc/systemd/system/dyhanie-bot.service   # пути и User
 sudo systemctl daemon-reload
 sudo systemctl enable --now dyhanie-bot
 ```

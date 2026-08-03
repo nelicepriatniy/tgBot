@@ -5,13 +5,12 @@ Wants=network-online.target
 
 [Service]
 Type=simple
-User=REPLACE_USER
-WorkingDirectory=/home/REPLACE_USER/tgBot
-EnvironmentFile=/home/REPLACE_USER/tgBot/.env
-ExecStart=/home/REPLACE_USER/tgBot/.venv/bin/python /home/REPLACE_USER/tgBot/main.py
+User=root
+WorkingDirectory=/root/tgBot
+EnvironmentFile=/root/tgBot/.env
+ExecStart=/root/tgBot/.venv/bin/python /root/tgBot/main.py
 Restart=always
 RestartSec=5
-# чуть спокойнее логи в journald
 StandardOutput=journal
 StandardError=journal
 
