@@ -114,19 +114,14 @@ class Database:
         if username is not None:
             fields.append("username = ?")
             values.append(username)
-        # Branch is sticky for lifecycle unless user had none
-        if branch and not existing["branch"]:
+        # Allow switching branch at any time (menu «Назад»)
+        if branch and existing["branch"] != branch:
             fields.append("branch = ?")
             values.append(branch)
+            # New branch gets its own lead magnet / funnel restart
+            fields.append("lead_magnet_sent = ?")
+            values.append(0)
             await self.log_event(telegram_id, branch, "start")
-        elif not existing["branch"] and not branch:
-            pass
-        elif branch and existing["branch"] and not existing.get("test_answers"):
-            # Allow branch change only before test completion
-            if existing["branch"] != branch:
-                fields.append("branch = ?")
-                values.append(branch)
-                await self.log_event(telegram_id, branch, "start")
 
         values.append(telegram_id)
         await self.db.execute(
@@ -160,7 +155,7 @@ class Database:
         user = await self.get_user(telegram_id)
         if user and user.get("branch") == branch:
             return
-        await self.update_user(telegram_id, branch=branch)
+        await self.update_user(telegram_id, branch=branch, lead_magnet_sent=0)
         await self.log_event(telegram_id, branch, "start")
 
     async def mark_subscribed(self, telegram_id: int, branch: str | None) -> None:

@@ -4,9 +4,9 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, Message
 
 from bot.config import Settings
-from bot.content import BRANCH_NAMES, CHOOSE_BRANCH, NEED_SUBSCRIBE
+from bot.content import BRANCH_NAMES, CHOOSE_BRANCH, NEED_SUBSCRIBE, SPORT_COMING_SOON
 from bot.db import BRANCHES, Database
-from bot.keyboards import branch_keyboard, start_test_keyboard
+from bot.keyboards import back_only_keyboard, branch_keyboard, start_test_keyboard
 from bot.services.funnel import send_gate, send_lead_magnet
 from bot.services.subscription import is_subscribed
 from bot.states import FunnelStates
@@ -32,6 +32,10 @@ async def _continue_after_branch(
     settings: Settings,
     returning: bool = False,
 ) -> None:
+    if branch == "sport":
+        await message.answer(SPORT_COMING_SOON, reply_markup=back_only_keyboard())
+        return
+
     if settings.require_subscription:
         subscribed = await is_subscribed(message.bot, settings.channel_id, user_id)
         if not subscribed:
@@ -98,6 +102,13 @@ async def cmd_start(
     )
 
 
+@router.callback_query(F.data == "menu:branches")
+async def back_to_branches(callback: CallbackQuery, state: FSMContext) -> None:
+    await state.clear()
+    await callback.message.answer(CHOOSE_BRANCH, reply_markup=branch_keyboard())
+    await callback.answer()
+
+
 @router.callback_query(F.data.startswith("branch:"))
 async def choose_branch(
     callback: CallbackQuery,
@@ -145,6 +156,9 @@ async def gate_check(
     branch = data.get("branch") or (user or {}).get("branch")
     if not branch:
         await callback.answer("Сначала выбери ветку через /start", show_alert=True)
+        return
+    if branch == "sport":
+        await callback.answer(SPORT_COMING_SOON, show_alert=True)
         return
 
     subscribed = await is_subscribed(

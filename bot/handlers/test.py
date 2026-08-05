@@ -5,9 +5,18 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery
 
 from bot.config import Settings
-from bot.content import BOLT_INTRO, TEST_Q1, TEST_Q2, TEST_Q3, TEST_START
+from bot.content import (
+    BOLT_HOWTO,
+    SPORT_COMING_SOON,
+    TEST_DESC,
+    TEST_Q1,
+    TEST_Q2,
+    TEST_Q3,
+    TEST_START,
+)
 from bot.db import Database
 from bot.keyboards import (
+    back_only_keyboard,
     bolt_ready_keyboard,
     bolt_start_keyboard,
     bolt_stop_keyboard,
@@ -19,10 +28,33 @@ from bot.states import FunnelStates
 router = Router(name="test")
 
 
+async def _user_branch(db: Database, user_id: int) -> str:
+    user = await db.get_user(user_id)
+    return (user or {}).get("branch") or "sleep"
+
+
 @router.callback_query(F.data == "test:start")
-async def test_start(callback: CallbackQuery, state: FSMContext) -> None:
+async def test_start(
+    callback: CallbackQuery,
+    state: FSMContext,
+    db: Database,
+) -> None:
+    branch = await _user_branch(db, callback.from_user.id)
+    if branch == "sport":
+        await callback.message.answer(
+            SPORT_COMING_SOON,
+            reply_markup=back_only_keyboard(),
+        )
+        await callback.answer()
+        return
+
     await state.set_state(FunnelStates.q1)
-    await state.update_data(answers={})
+    await state.update_data(answers={}, branch=branch)
+
+    desc = TEST_DESC.get(branch)
+    if desc:
+        await callback.message.answer(desc)
+
     await callback.message.answer(TEST_START)
     await callback.message.answer(
         TEST_Q1["text"],
@@ -73,7 +105,7 @@ async def on_q3(callback: CallbackQuery, state: FSMContext) -> None:
     await state.set_state(FunnelStates.bolt_intro)
     await callback.message.edit_text(f"{TEST_Q3['text']}\n\n✓")
     await callback.message.answer(
-        BOLT_INTRO,
+        BOLT_HOWTO,
         reply_markup=bolt_ready_keyboard(),
     )
     await callback.answer()
@@ -115,8 +147,7 @@ async def bolt_stop(
 
     seconds = max(0.0, time.monotonic() - float(started))
     answers = data.get("answers", {})
-    user = await db.get_user(callback.from_user.id)
-    branch = (user or {}).get("branch") or "sleep"
+    branch = data.get("branch") or await _user_branch(db, callback.from_user.id)
 
     level = await db.save_test_result(
         telegram_id=callback.from_user.id,
