@@ -7,10 +7,12 @@ from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
 from aiogram.fsm.storage.memory import MemoryStorage
 
+from aiogram.types import BotCommand
+
 from bot.config import get_settings
 from bot.content import ensure_placeholder_files
 from bot.db import Database
-from bot.handlers import admin, start, test
+from bot.handlers import admin, fallback, start, test
 from bot.middlewares import InjectMiddleware
 from bot.services.drip import DripScheduler
 
@@ -38,9 +40,12 @@ async def main() -> None:
     dp.include_router(start.router)
     dp.include_router(test.router)
     dp.include_router(admin.router)
+    dp.include_router(fallback.router)
 
     drip = DripScheduler(bot, db, settings)
     drip.start()
+
+    await bot.set_my_commands([BotCommand(command="start", description="Старт")])
 
     logger.info("Bot starting…")
     try:

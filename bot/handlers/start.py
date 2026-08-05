@@ -6,12 +6,20 @@ from aiogram.types import CallbackQuery, Message
 from bot.config import Settings
 from bot.content import BRANCH_NAMES, CHOOSE_BRANCH, NEED_SUBSCRIBE, SPORT_COMING_SOON
 from bot.db import BRANCHES, Database
-from bot.keyboards import back_only_keyboard, branch_keyboard, start_test_keyboard
+from bot.keyboards import (
+    START_BTN,
+    back_only_keyboard,
+    branch_keyboard,
+    main_reply_keyboard,
+    start_test_keyboard,
+)
 from bot.services.funnel import send_gate, send_lead_magnet
 from bot.services.subscription import is_subscribed
 from bot.states import FunnelStates
 
 router = Router(name="start")
+
+_START_ALIASES = {START_BTN.lower(), "start", "старт", "/start"}
 
 
 def _parse_branch(payload: str | None) -> str | None:
@@ -66,21 +74,26 @@ async def _continue_after_branch(
     await state.set_state(FunnelStates.ready_for_test)
 
 
-@router.message(CommandStart())
-async def cmd_start(
+async def run_start(
     message: Message,
-    command: CommandObject,
     state: FSMContext,
     db: Database,
     settings: Settings,
+    payload: str | None = None,
 ) -> None:
     await state.clear()
-    branch = _parse_branch(command.args)
+    branch = _parse_branch(payload)
     user = await db.upsert_user(
         telegram_id=message.from_user.id,
         username=message.from_user.username,
         branch=branch,
     )
+
+    await message.answer(
+        "Нажми «Старт» в любой момент, чтобы начать заново.",
+        reply_markup=main_reply_keyboard(),
+    )
+
     if not branch and not user.get("branch"):
         await message.answer(CHOOSE_BRANCH, reply_markup=branch_keyboard())
         return
@@ -102,10 +115,50 @@ async def cmd_start(
     )
 
 
+@router.message(CommandStart())
+async def cmd_start(
+    message: Message,
+    command: CommandObject,
+    state: FSMContext,
+    db: Database,
+    settings: Settings,
+) -> None:
+    await run_start(message, state, db, settings, payload=command.args)
+
+
+@router.message(F.text.func(lambda t: bool(t) and t.strip().lower() in _START_ALIASES))
+async def btn_start(
+    message: Message,
+    state: FSMContext,
+    db: Database,
+    settings: Settings,
+) -> None:
+    await run_start(message, state, db, settings)
+
+
+@router.callback_query(F.data == "nav:back")
+async def nav_back(
+    callback: CallbackQuery,
+    state: FSMContext,
+    db: Database,
+    settings: Settings,
+) -> None:
+    from bot.services.navigation import step_back
+
+    await step_back(callback, state, db, settings)
+    await callback.answer()
+
+
 @router.callback_query(F.data == "menu:branches")
-async def back_to_branches(callback: CallbackQuery, state: FSMContext) -> None:
-    await state.clear()
-    await callback.message.answer(CHOOSE_BRANCH, reply_markup=branch_keyboard())
+async def back_to_branches_legacy(
+    callback: CallbackQuery,
+    state: FSMContext,
+    db: Database,
+    settings: Settings,
+) -> None:
+    from bot.services.navigation import step_back
+
+    await step_back(callback, state, db, settings)
     await callback.answer()
 
 
@@ -155,7 +208,7 @@ async def gate_check(
     data = await state.get_data()
     branch = data.get("branch") or (user or {}).get("branch")
     if not branch:
-        await callback.answer("Сначала выбери ветку через /start", show_alert=True)
+        await callback.answer("Сначала нажми «Старт»", show_alert=True)
         return
     if branch == "sport":
         await callback.answer(SPORT_COMING_SOON, show_alert=True)

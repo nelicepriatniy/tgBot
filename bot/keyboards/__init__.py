@@ -1,7 +1,22 @@
-from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
+from aiogram.types import (
+    InlineKeyboardButton,
+    InlineKeyboardMarkup,
+    KeyboardButton,
+    ReplyKeyboardMarkup,
+)
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
-BACK_CB = "menu:branches"
+BACK_CB = "nav:back"
+START_BTN = "Старт"
+
+
+def main_reply_keyboard() -> ReplyKeyboardMarkup:
+    return ReplyKeyboardMarkup(
+        keyboard=[[KeyboardButton(text=START_BTN)]],
+        resize_keyboard=True,
+        is_persistent=True,
+        input_field_placeholder="Нажми «Старт»",
+    )
 
 
 def back_button() -> InlineKeyboardButton:
