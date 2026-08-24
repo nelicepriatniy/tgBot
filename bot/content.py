@@ -29,9 +29,9 @@ GATE_TEXT = {
 
 LEAD_MAGNET = {
     "sleep": {
-        "caption": "Твой лид-магнит: PDF «Протокол 7=10» и аудио 6 минут.",
-        "pdf": CONTENT_DIR / "sleep" / "protocol_7_10.pdf",
-        "audio": CONTENT_DIR / "sleep" / "audio_6min.mp3",
+        "caption": "Твой лид-магнит: PDF «Лидмагнит сон».",
+        "pdf": CONTENT_DIR / "sleep" / "лидмангит сон финал.pdf.pdf",
+        "audio": None,
     },
     "longevity": {
         "caption": "Твой лид-магнит: PDF «Гайд Longevity».",
@@ -304,8 +304,7 @@ AFTER_LEAD = "Материалы у тебя. Готов пройти тест?"
 def ensure_placeholder_files() -> None:
     """Create tiny placeholder PDF/MP3 so sendDocument works in dev."""
     placeholders = [
-        CONTENT_DIR / "sleep" / "protocol_7_10.pdf",
-        CONTENT_DIR / "sleep" / "audio_6min.mp3",
+        CONTENT_DIR / "sleep" / "лидмангит сон финал.pdf.pdf",
         CONTENT_DIR / "longevity" / "гайд longevity — постранично_3.pdf",
         CONTENT_DIR / "sport" / "лидмагнит фитнес.pdf",
     ]
