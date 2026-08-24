@@ -9,7 +9,7 @@ CONTENT_DIR = ROOT_DIR / "content"
 BRANCH_NAMES = {
     "sleep": "Сон",
     "longevity": "Longevity",
-    "sport": "Спорт",
+    "sport": "Фитнес",
 }
 
 GATE_TEXT = {
@@ -124,7 +124,7 @@ DISCLAIMER = (
 )
 
 SPORT_COMING_SOON = (
-    "Ветка «Спорт» скоро будет доступна.\n"
+    "Ветка Фитнес скоро будет доступна.\n"
     "Coming soon."
 )
 

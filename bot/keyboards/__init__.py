@@ -27,7 +27,7 @@ def branch_keyboard() -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
     builder.button(text="Сон", callback_data="branch:sleep")
     builder.button(text="Longevity", callback_data="branch:longevity")
-    builder.button(text="Спорт", callback_data="branch:sport")
+    builder.button(text="Фитнес", callback_data="branch:sport")
     builder.adjust(1)
     return builder.as_markup()
 
