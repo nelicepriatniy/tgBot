@@ -12,6 +12,7 @@ from bot.content import (
     TEST_Q2,
     TEST_Q3,
     TEST_START,
+    TEST_START_SLEEP,
 )
 from bot.db import Database
 from bot.keyboards import (
@@ -31,6 +32,14 @@ async def _user_branch(db: Database, user_id: int) -> str:
     return (user or {}).get("branch") or "sleep"
 
 
+async def _start_bolt(callback: CallbackQuery, state: FSMContext) -> None:
+    await state.set_state(FunnelStates.bolt_intro)
+    await callback.message.answer(
+        BOLT_HOWTO,
+        reply_markup=bolt_ready_keyboard(),
+    )
+
+
 @router.callback_query(F.data == "test:start")
 async def test_start(
     callback: CallbackQuery,
@@ -38,19 +47,24 @@ async def test_start(
     db: Database,
 ) -> None:
     branch = await _user_branch(db, callback.from_user.id)
-
-    await state.set_state(FunnelStates.q1)
     await state.update_data(answers={}, branch=branch)
 
     desc = TEST_DESC.get(branch)
     if desc:
         await callback.message.answer(desc)
 
-    await callback.message.answer(TEST_START)
-    await callback.message.answer(
-        TEST_Q1["text"],
-        reply_markup=options_keyboard("q1", TEST_Q1["options"]),
-    )
+    # Lifestyle-вопросы только для ветки «Сон»
+    if branch == "sleep":
+        await state.set_state(FunnelStates.q1)
+        await callback.message.answer(TEST_START_SLEEP)
+        await callback.message.answer(
+            TEST_Q1["text"],
+            reply_markup=options_keyboard("q1", TEST_Q1["options"]),
+        )
+    else:
+        await callback.message.answer(TEST_START)
+        await _start_bolt(callback, state)
+
     await callback.answer()
 
 
@@ -93,12 +107,8 @@ async def on_q3(callback: CallbackQuery, state: FSMContext) -> None:
     answers = data.get("answers", {})
     answers["mouth_breathing"] = answer
     await state.update_data(answers=answers)
-    await state.set_state(FunnelStates.bolt_intro)
     await callback.message.edit_text(f"{TEST_Q3['text']}\n\n✓")
-    await callback.message.answer(
-        BOLT_HOWTO,
-        reply_markup=bolt_ready_keyboard(),
-    )
+    await _start_bolt(callback, state)
     await callback.answer()
 
 
@@ -145,7 +155,8 @@ async def bolt_stop(
         answers=answers,
         bolt_seconds=seconds,
         branch=branch,
-        promo_code=settings.promo_code,
+        # promo_code=settings.promo_code,  # промокод пока отключён
+        promo_code="",
     )
 
     await callback.message.edit_text(f"BOLT: {seconds:.1f} сек")

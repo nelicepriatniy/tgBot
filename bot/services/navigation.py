@@ -134,7 +134,11 @@ async def step_back(
         return
 
     if current == FunnelStates.bolt_intro.state:
-        await show_q3(message, state)
+        # Lifestyle-вопросы только у «Сон»
+        if branch == "sleep":
+            await show_q3(message, state)
+        else:
+            await show_ready_for_test(message, state)
         return
 
     if current == FunnelStates.bolt_waiting_start.state:

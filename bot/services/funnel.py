@@ -13,11 +13,12 @@ from bot.content import (
     GATE_TEXT,
     INTERPRETATION,
     LEAD_MAGNET,
-    PROMO_TEXT,
+    # PROMO_TEXT,  # промокод пока отключён
     ensure_placeholder_files,
 )
 from bot.db import Database
-from bot.keyboards import gate_keyboard, offer_keyboard_tracked, start_test_keyboard
+from bot.keyboards import gate_keyboard, start_test_keyboard
+# from bot.keyboards import offer_keyboard_tracked  # промокод / оффер со скидкой пока отключён
 
 
 async def send_gate(message: Message, branch: str, settings: Settings) -> None:
@@ -48,6 +49,7 @@ async def send_lead_magnet(
 
 
 def promo_until(issued_at: str | None = None) -> str:
+    # промокод пока отключён — функция оставлена на будущее
     if issued_at:
         start = datetime.fromisoformat(issued_at)
         if start.tzinfo is None:
@@ -67,15 +69,16 @@ async def send_result(
     settings: Settings,
 ) -> None:
     interp = INTERPRETATION[branch][level].format(seconds=bolt_seconds)
-    promo = PROMO_TEXT.format(
-        code=settings.promo_code,
-        until=promo_until(),
-    )
     await message.answer(f"{interp}\n\n{DISCLAIMER}")
-    await message.answer(
-        promo,
-        reply_markup=offer_keyboard_tracked(settings.purchase_url(branch)),
-    )
+    # Промокод пока отключён
+    # promo = PROMO_TEXT.format(
+    #     code=settings.promo_code,
+    #     until=promo_until(),
+    # )
+    # await message.answer(
+    #     promo,
+    #     reply_markup=offer_keyboard_tracked(settings.purchase_url(branch)),
+    # )
 
 
 async def broadcast(

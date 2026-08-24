@@ -18,7 +18,9 @@ class Settings(BaseSettings):
     channel_url: str = ""
     require_subscription: bool = False
     admin_ids: str = ""
-    promo_code: str = "DYHANIE30"
+    # promo_code: str = "DYHANIE30"  # промокод пока отключён
+    promo_code: str = ""
+
     purchase_url_sleep: str = "https://example.com/sleep"
     purchase_url_longevity: str = "https://example.com/longevity"
     purchase_url_sport: str = "https://example.com/sport"

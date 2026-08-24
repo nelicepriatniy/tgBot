@@ -83,11 +83,13 @@ def bolt_stop_keyboard() -> InlineKeyboardMarkup:
 
 
 def offer_keyboard_tracked(purchase_url: str) -> InlineKeyboardMarkup:
+    # Промокод / оффер со скидкой пока отключён — клавиатура оставлена на будущее
     builder = InlineKeyboardBuilder()
-    builder.row(InlineKeyboardButton(text="Забрать со скидкой", url=purchase_url))
-    builder.row(
-        InlineKeyboardButton(text="Перешёл по ссылке", callback_data="offer:clicked")
-    )
+    # builder.row(InlineKeyboardButton(text="Забрать со скидкой", url=purchase_url))
+    # builder.row(
+    #     InlineKeyboardButton(text="Перешёл по ссылке", callback_data="offer:clicked")
+    # )
+    builder.row(InlineKeyboardButton(text="Перейти", url=purchase_url))
     builder.row(back_button())
     return builder.as_markup()
 

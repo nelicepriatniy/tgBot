@@ -11,7 +11,8 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from bot.config import Settings
 from bot.content import DRIP
 from bot.db import Database
-from bot.keyboards import offer_keyboard_tracked, unsubscribe_keyboard
+from bot.keyboards import unsubscribe_keyboard
+# from bot.keyboards import offer_keyboard_tracked  # оффер со скидкой / промокод пока отключён
 
 logger = logging.getLogger(__name__)
 
@@ -68,12 +69,13 @@ class DripScheduler:
         if not text_tpl:
             return
         seconds = float(user.get("bolt_seconds") or 0)
-        text = text_tpl.format(seconds=seconds, code=self.settings.promo_code)
-        markup = None
-        if day in (3, 7):
-            markup = offer_keyboard_tracked(self.settings.purchase_url(branch))
-        else:
-            markup = unsubscribe_keyboard()
+        # text = text_tpl.format(seconds=seconds, code=self.settings.promo_code)  # промокод пока отключён
+        text = text_tpl.format(seconds=seconds, code="")
+        markup = unsubscribe_keyboard()
+        # if day in (3, 7):
+        #     markup = offer_keyboard_tracked(self.settings.purchase_url(branch))
+        # else:
+        #     markup = unsubscribe_keyboard()
         try:
             await self.bot.send_message(
                 user["telegram_id"],
