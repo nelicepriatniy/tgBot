@@ -30,7 +30,7 @@ GATE_TEXT = {
 LEAD_MAGNET = {
     "sleep": {
         "caption": "Твой лид-магнит: PDF «Лидмагнит сон».",
-        "pdf": CONTENT_DIR / "sleep" / "лидмангит сон финал.pdf.pdf",
+        "pdf": CONTENT_DIR / "sleep" / "лидмагнит сон.pdf",
         "audio": None,
     },
     "longevity": {
@@ -301,16 +301,22 @@ TEST_START = "Дальше — замер BOLT."
 AFTER_LEAD = "Материалы у тебя. Готов пройти тест?"
 
 
+def resolve_lead_pdf(branch: str) -> Path | None:
+    """Точный путь из LEAD_MAGNET или любой PDF в папке ветки."""
+    meta = LEAD_MAGNET[branch]
+    pdf = meta["pdf"]
+    if pdf and pdf.exists() and pdf.stat().st_size > 1000:
+        return pdf
+    folder = CONTENT_DIR / branch
+    if folder.is_dir():
+        candidates = sorted(folder.glob("*.pdf"), key=lambda p: p.stat().st_mtime, reverse=True)
+        for path in candidates:
+            if path.stat().st_size > 1000:
+                return path
+    return None
+
+
 def ensure_placeholder_files() -> None:
-    """Create tiny placeholder PDF/MP3 so sendDocument works in dev."""
-    placeholders = [
-        CONTENT_DIR / "sleep" / "лидмангит сон финал.pdf.pdf",
-        CONTENT_DIR / "longevity" / "гайд longevity — постранично_3.pdf",
-        CONTENT_DIR / "sport" / "лидмагнит фитнес.pdf",
-    ]
-    mini_pdf = b"%PDF-1.1\n1 0 obj<<>>endobj\ntrailer<<>>\n%%EOF\n"
-    mini_mp3 = b"ID3" + b"\x00" * 64
-    for path in placeholders:
-        path.parent.mkdir(parents=True, exist_ok=True)
-        if not path.exists():
-            path.write_bytes(mini_mp3 if path.suffix == ".mp3" else mini_pdf)
+    """Create dirs; do not invent fake magnets if real files are missing."""
+    for branch in ("sleep", "longevity", "sport"):
+        (CONTENT_DIR / branch).mkdir(parents=True, exist_ok=True)

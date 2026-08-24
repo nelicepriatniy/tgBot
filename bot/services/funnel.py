@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from datetime import datetime, timedelta, timezone
 
 from aiogram import Bot
@@ -13,12 +14,13 @@ from bot.content import (
     GATE_TEXT,
     INTERPRETATION,
     LEAD_MAGNET,
-    # PROMO_TEXT,  # промокод пока отключён
     ensure_placeholder_files,
+    resolve_lead_pdf,
 )
 from bot.db import Database
 from bot.keyboards import gate_keyboard, start_test_keyboard
-# from bot.keyboards import offer_keyboard_tracked  # промокод / оффер со скидкой пока отключён
+
+logger = logging.getLogger(__name__)
 
 
 async def send_gate(message: Message, branch: str, settings: Settings) -> None:
@@ -35,16 +37,39 @@ async def send_lead_magnet(
     ensure_placeholder_files()
     meta = LEAD_MAGNET[branch]
     await message.answer(ALREADY_SUBSCRIBED)
-    pdf_path = meta["pdf"]
-    if pdf_path and pdf_path.exists():
-        await message.answer_document(
-            FSInputFile(pdf_path),
-            caption=meta["caption"],
+
+    pdf_path = resolve_lead_pdf(branch)
+    sent = False
+    if pdf_path is not None:
+        try:
+            await message.answer_document(
+                FSInputFile(pdf_path),
+                caption=meta["caption"],
+            )
+            sent = True
+        except Exception:
+            logger.exception("Failed to send lead magnet %s for user %s", pdf_path, user_id)
+            await message.answer(
+                "Не удалось отправить файл. Напиши в поддержку или нажми «Старт» ещё раз."
+            )
+    else:
+        logger.error(
+            "Lead magnet PDF missing for branch=%s (expected %s)",
+            branch,
+            meta["pdf"],
         )
+        await message.answer(
+            "Файл материалов пока не найден на сервере. "
+            "Загрузи PDF в content/%s/ и перезапусти бота." % branch
+        )
+
     audio_path = meta.get("audio")
     if audio_path and audio_path.exists():
         await message.answer_audio(FSInputFile(audio_path))
-    await db.mark_lead_magnet(user_id, branch)
+
+    if sent:
+        await db.mark_lead_magnet(user_id, branch)
+
     await message.answer(AFTER_LEAD, reply_markup=start_test_keyboard())
 
 

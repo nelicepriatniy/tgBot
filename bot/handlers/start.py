@@ -48,23 +48,7 @@ async def _continue_after_branch(
             return
         await db.mark_subscribed(user_id, branch)
 
-    if returning and user.get("lead_magnet_sent"):
-        await message.answer(
-            f"Снова на связи. Ветка: {BRANCH_NAMES.get(branch, branch)}.\n"
-            "Можешь пройти тест заново или дождаться писем рассылки.",
-        )
-        await message.answer("Пройти тест ещё раз?", reply_markup=start_test_keyboard())
-        await state.set_state(FunnelStates.ready_for_test)
-        return
-
-    if user.get("lead_magnet_sent"):
-        await message.answer(
-            "Материалы уже отправлялись. Пройти тест ещё раз?",
-            reply_markup=start_test_keyboard(),
-        )
-        await state.set_state(FunnelStates.ready_for_test)
-        return
-
+    # Всегда отправляем лид-магнит (если файл есть), даже при повторном входе
     await send_lead_magnet(message, branch, db, user_id)
     await state.set_state(FunnelStates.ready_for_test)
 
