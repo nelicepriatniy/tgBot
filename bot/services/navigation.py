@@ -106,7 +106,7 @@ async def step_back(
         return
 
     if current == FunnelStates.ready_for_test.state:
-        if settings.require_subscription and branch and branch != "sport":
+        if settings.require_subscription and branch:
             await show_gate(message, state, branch, settings)
         else:
             await show_branches(callback, state)

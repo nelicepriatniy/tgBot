@@ -4,11 +4,10 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, Message
 
 from bot.config import Settings
-from bot.content import BRANCH_NAMES, CHOOSE_BRANCH, NEED_SUBSCRIBE, SPORT_COMING_SOON
+from bot.content import BRANCH_NAMES, CHOOSE_BRANCH, NEED_SUBSCRIBE
 from bot.db import BRANCHES, Database
 from bot.keyboards import (
     START_BTN,
-    back_only_keyboard,
     branch_keyboard,
     main_reply_keyboard,
     start_test_keyboard,
@@ -40,10 +39,6 @@ async def _continue_after_branch(
     settings: Settings,
     returning: bool = False,
 ) -> None:
-    if branch == "sport":
-        await message.answer(SPORT_COMING_SOON, reply_markup=back_only_keyboard())
-        return
-
     if settings.require_subscription:
         subscribed = await is_subscribed(message.bot, settings.channel_id, user_id)
         if not subscribed:
@@ -209,9 +204,6 @@ async def gate_check(
     branch = data.get("branch") or (user or {}).get("branch")
     if not branch:
         await callback.answer("Сначала нажми «Старт»", show_alert=True)
-        return
-    if branch == "sport":
-        await callback.answer(SPORT_COMING_SOON, show_alert=True)
         return
 
     subscribed = await is_subscribed(

@@ -7,7 +7,6 @@ from aiogram.types import CallbackQuery
 from bot.config import Settings
 from bot.content import (
     BOLT_HOWTO,
-    SPORT_COMING_SOON,
     TEST_DESC,
     TEST_Q1,
     TEST_Q2,
@@ -16,7 +15,6 @@ from bot.content import (
 )
 from bot.db import Database
 from bot.keyboards import (
-    back_only_keyboard,
     bolt_ready_keyboard,
     bolt_start_keyboard,
     bolt_stop_keyboard,
@@ -40,13 +38,6 @@ async def test_start(
     db: Database,
 ) -> None:
     branch = await _user_branch(db, callback.from_user.id)
-    if branch == "sport":
-        await callback.message.answer(
-            SPORT_COMING_SOON,
-            reply_markup=back_only_keyboard(),
-        )
-        await callback.answer()
-        return
 
     await state.set_state(FunnelStates.q1)
     await state.update_data(answers={}, branch=branch)
