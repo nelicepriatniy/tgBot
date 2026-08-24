@@ -30,7 +30,7 @@ GATE_TEXT = {
 LEAD_MAGNET = {
     "sleep": {
         "caption": "Твой лид-магнит: PDF «Лидмагнит сон».",
-        "pdf": CONTENT_DIR / "sleep" / "лидмагнит сон.pdf",
+        "pdf": CONTENT_DIR / "sleep" / "лидмангит сон финал.pdf.pdf",
         "audio": None,
     },
     "longevity": {
