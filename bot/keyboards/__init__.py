@@ -6,6 +6,8 @@ from aiogram.types import (
 )
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
+from bot.content import BRANCH_BUTTONS
+
 BACK_CB = "nav:back"
 START_BTN = "Старт"
 
@@ -15,7 +17,7 @@ def main_reply_keyboard() -> ReplyKeyboardMarkup:
         keyboard=[[KeyboardButton(text=START_BTN)]],
         resize_keyboard=True,
         is_persistent=True,
-        input_field_placeholder="Нажми «Старт»",
+        input_field_placeholder="Нажми «Старт», чтобы начать заново",
     )
 
 
@@ -25,17 +27,16 @@ def back_button() -> InlineKeyboardButton:
 
 def branch_keyboard() -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
-    builder.button(text="Сон", callback_data="branch:sleep")
-    builder.button(text="Longevity", callback_data="branch:longevity")
-    builder.button(text="Фитнес", callback_data="branch:sport")
-    builder.adjust(1)
+    for key, label in BRANCH_BUTTONS:
+        builder.button(text=label, callback_data=f"branch:{key}")
+    builder.adjust(2, 1)
     return builder.as_markup()
 
 
 def gate_keyboard(channel_url: str) -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
     builder.button(text="Подписаться на канал", url=channel_url)
-    builder.button(text="Я подписался", callback_data="gate:check")
+    builder.button(text="✅ Я подписался, проверить", callback_data="gate:check")
     builder.button(text="← Назад", callback_data=BACK_CB)
     builder.adjust(1)
     return builder.as_markup()
@@ -49,18 +50,9 @@ def start_test_keyboard() -> InlineKeyboardMarkup:
     return builder.as_markup()
 
 
-def options_keyboard(prefix: str, options: list[tuple[str, str]]) -> InlineKeyboardMarkup:
-    builder = InlineKeyboardBuilder()
-    for key, label in options:
-        builder.button(text=label, callback_data=f"{prefix}:{key}")
-    builder.button(text="← Назад", callback_data=BACK_CB)
-    builder.adjust(1)
-    return builder.as_markup()
-
-
 def bolt_ready_keyboard() -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
-    builder.button(text="Готов — показать СТАРТ", callback_data="bolt:ready")
+    builder.button(text="Готов, показать «Старт»", callback_data="bolt:ready")
     builder.button(text="← Назад", callback_data=BACK_CB)
     builder.adjust(1)
     return builder.as_markup()
@@ -82,13 +74,17 @@ def bolt_stop_keyboard() -> InlineKeyboardMarkup:
     return builder.as_markup()
 
 
+def channel_post_keyboard(url: str, button_text: str) -> InlineKeyboardMarkup:
+    builder = InlineKeyboardBuilder()
+    builder.button(text=button_text, url=url)
+    builder.button(text="← Назад", callback_data=BACK_CB)
+    builder.adjust(1)
+    return builder.as_markup()
+
+
 def offer_keyboard_tracked(purchase_url: str) -> InlineKeyboardMarkup:
     # Промокод / оффер со скидкой пока отключён — клавиатура оставлена на будущее
     builder = InlineKeyboardBuilder()
-    # builder.row(InlineKeyboardButton(text="Забрать со скидкой", url=purchase_url))
-    # builder.row(
-    #     InlineKeyboardButton(text="Перешёл по ссылке", callback_data="offer:clicked")
-    # )
     builder.row(InlineKeyboardButton(text="Перейти", url=purchase_url))
     builder.row(back_button())
     return builder.as_markup()

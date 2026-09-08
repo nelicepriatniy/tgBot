@@ -4,20 +4,12 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, Message
 
 from bot.config import Settings
-from bot.content import (
-    AFTER_LEAD,
-    BOLT_HOWTO,
-    CHOOSE_BRANCH,
-    TEST_Q1,
-    TEST_Q2,
-    TEST_Q3,
-)
+from bot.content import AFTER_LEAD, BOLT_HOWTO, BOLT_INTRO, BOLT_START_HINT, CHOOSE_BRANCH
 from bot.db import Database
 from bot.keyboards import (
     bolt_ready_keyboard,
     bolt_start_keyboard,
     branch_keyboard,
-    options_keyboard,
     start_test_keyboard,
 )
 from bot.services.funnel import send_gate
@@ -25,7 +17,7 @@ from bot.states import FunnelStates
 
 
 async def show_branches(target: Message | CallbackQuery, state: FSMContext) -> None:
-    await state.clear()
+    await state.set_state(FunnelStates.choosing_branch)
     message = target.message if isinstance(target, CallbackQuery) else target
     await message.answer(CHOOSE_BRANCH, reply_markup=branch_keyboard())
 
@@ -46,32 +38,9 @@ async def show_ready_for_test(message: Message, state: FSMContext) -> None:
     await message.answer(AFTER_LEAD, reply_markup=start_test_keyboard())
 
 
-async def show_q1(message: Message, state: FSMContext) -> None:
-    await state.set_state(FunnelStates.q1)
-    await message.answer(
-        TEST_Q1["text"],
-        reply_markup=options_keyboard("q1", TEST_Q1["options"]),
-    )
-
-
-async def show_q2(message: Message, state: FSMContext) -> None:
-    await state.set_state(FunnelStates.q2)
-    await message.answer(
-        TEST_Q2["text"],
-        reply_markup=options_keyboard("q2", TEST_Q2["options"]),
-    )
-
-
-async def show_q3(message: Message, state: FSMContext) -> None:
-    await state.set_state(FunnelStates.q3)
-    await message.answer(
-        TEST_Q3["text"],
-        reply_markup=options_keyboard("q3", TEST_Q3["options"]),
-    )
-
-
 async def show_bolt_intro(message: Message, state: FSMContext) -> None:
     await state.set_state(FunnelStates.bolt_intro)
+    await message.answer(BOLT_INTRO)
     await message.answer(BOLT_HOWTO, reply_markup=bolt_ready_keyboard())
 
 
@@ -79,7 +48,7 @@ async def show_bolt_start(message: Message, state: FSMContext) -> None:
     await state.set_state(FunnelStates.bolt_waiting_start)
     await state.update_data(bolt_started_at=None)
     await message.answer(
-        "На выдохе зажми нос и нажми СТАРТ.",
+        BOLT_START_HINT,
         reply_markup=bolt_start_keyboard(),
     )
 
@@ -96,8 +65,7 @@ async def step_back(
     user = await db.get_user(callback.from_user.id)
     branch = data.get("branch") or (user or {}).get("branch")
 
-    # Sport stub / no state → выбор ветки
-    if current is None:
+    if current is None or current == FunnelStates.choosing_branch.state:
         await show_branches(callback, state)
         return
 
@@ -112,33 +80,8 @@ async def step_back(
             await show_branches(callback, state)
         return
 
-    if current == FunnelStates.q1.state:
-        answers = data.get("answers", {})
-        answers.pop("sleep_hours", None)
-        await state.update_data(answers=answers)
-        await show_ready_for_test(message, state)
-        return
-
-    if current == FunnelStates.q2.state:
-        answers = data.get("answers", {})
-        answers.pop("night_wakes", None)
-        await state.update_data(answers=answers)
-        await show_q1(message, state)
-        return
-
-    if current == FunnelStates.q3.state:
-        answers = data.get("answers", {})
-        answers.pop("mouth_breathing", None)
-        await state.update_data(answers=answers)
-        await show_q2(message, state)
-        return
-
     if current == FunnelStates.bolt_intro.state:
-        # Lifestyle-вопросы только у «Сон»
-        if branch == "sleep":
-            await show_q3(message, state)
-        else:
-            await show_ready_for_test(message, state)
+        await show_ready_for_test(message, state)
         return
 
     if current == FunnelStates.bolt_waiting_start.state:
@@ -153,5 +96,4 @@ async def step_back(
         await show_ready_for_test(message, state)
         return
 
-    # fallback
     await show_branches(callback, state)

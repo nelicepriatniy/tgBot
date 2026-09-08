@@ -7,3 +7,7 @@ venv/
 *.egg-info/
 .pytest_cache/
 .mypy_cache/
+
+# исходники слишком тяжёлые для GitHub; бот отправляет *.compressed.mp4
+content/videos/*.mp4
+!content/videos/*.compressed.mp4

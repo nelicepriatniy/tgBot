@@ -2,25 +2,66 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 
 from aiogram import Bot
+from aiogram.fsm.context import FSMContext
 from aiogram.types import FSInputFile, Message
 
 from bot.config import Settings
 from bot.content import (
     AFTER_LEAD,
     ALREADY_SUBSCRIBED,
+    BRANCH_DESC,
+    BRANCH_NAMES,
+    CTA_GOOD_BTN,
+    CTA_WEAK_BTN,
     DISCLAIMER,
     GATE_TEXT,
+    GREETING,
     INTERPRETATION,
     LEAD_MAGNET,
+    PREPARING_FILE,
+    RESULT_CTA_GOOD,
+    RESULT_CTA_WEAK,
     ensure_placeholder_files,
     resolve_lead_pdf,
+    resolve_video,
 )
 from bot.db import Database
-from bot.keyboards import gate_keyboard, start_test_keyboard
+from bot.keyboards import channel_post_keyboard, gate_keyboard, start_test_keyboard
+from bot.services.subscription import is_subscribed
+from bot.states import FunnelStates
 
 logger = logging.getLogger(__name__)
+
+
+async def _send_video_or_text(
+    message: Message,
+    path: Path | None,
+    caption: str | None,
+) -> None:
+    if path is not None:
+        try:
+            await message.answer_video(
+                FSInputFile(path),
+                caption=caption,
+                supports_streaming=True,
+            )
+            return
+        except Exception:
+            logger.exception("Failed to send video %s", path)
+    if caption:
+        await message.answer(caption)
+
+
+async def send_greeting(message: Message) -> None:
+    await _send_video_or_text(message, resolve_video("greeting"), GREETING)
+
+
+async def send_branch_intro(message: Message, branch: str) -> None:
+    caption = BRANCH_DESC.get(branch, "")
+    await _send_video_or_text(message, resolve_video(branch), caption)
 
 
 async def send_gate(message: Message, branch: str, settings: Settings) -> None:
@@ -28,15 +69,47 @@ async def send_gate(message: Message, branch: str, settings: Settings) -> None:
     await message.answer(text, reply_markup=gate_keyboard(settings.channel_url))
 
 
+async def continue_after_branch(
+    message: Message,
+    *,
+    user_id: int,
+    branch: str,
+    state: FSMContext,
+    db: Database,
+    settings: Settings,
+    confirm: bool = True,
+) -> None:
+    if confirm:
+        await message.answer(f"Выбрано: {BRANCH_NAMES[branch]}")
+    await send_branch_intro(message, branch)
+
+    if settings.require_subscription:
+        subscribed = await is_subscribed(message.bot, settings.channel_id, user_id)
+        if not subscribed:
+            await state.set_state(FunnelStates.waiting_subscription)
+            await state.update_data(branch=branch)
+            await send_gate(message, branch, settings)
+            return
+        await db.mark_subscribed(user_id, branch)
+
+    await send_lead_magnet(message, branch, db, user_id)
+    await state.set_state(FunnelStates.ready_for_test)
+
+
 async def send_lead_magnet(
     message: Message,
     branch: str,
     db: Database,
     user_id: int,
+    *,
+    announce: bool = False,
 ) -> None:
     ensure_placeholder_files()
     meta = LEAD_MAGNET[branch]
-    await message.answer(ALREADY_SUBSCRIBED)
+    if announce:
+        await message.answer(ALREADY_SUBSCRIBED)
+
+    await message.answer(PREPARING_FILE)
 
     pdf_path = resolve_lead_pdf(branch)
     sent = False
@@ -93,17 +166,25 @@ async def send_result(
     level: str,
     settings: Settings,
 ) -> None:
-    interp = INTERPRETATION[branch][level].format(seconds=bolt_seconds)
+    interp = INTERPRETATION[branch][level]
     await message.answer(f"{interp}\n\n{DISCLAIMER}")
-    # Промокод пока отключён
-    # promo = PROMO_TEXT.format(
-    #     code=settings.promo_code,
-    #     until=promo_until(),
-    # )
-    # await message.answer(
-    #     promo,
-    #     reply_markup=offer_keyboard_tracked(settings.purchase_url(branch)),
-    # )
+
+    if level in ("good", "excellent"):
+        await message.answer(
+            RESULT_CTA_GOOD,
+            reply_markup=channel_post_keyboard(
+                settings.channel_post_tests_url,
+                CTA_GOOD_BTN,
+            ),
+        )
+    else:
+        await message.answer(
+            RESULT_CTA_WEAK,
+            reply_markup=channel_post_keyboard(
+                settings.channel_post_breathe_url,
+                CTA_WEAK_BTN,
+            ),
+        )
 
 
 async def broadcast(

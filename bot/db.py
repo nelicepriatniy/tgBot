@@ -13,6 +13,7 @@ BOLT_LEVELS = {
     "below": "ниже нормы",
     "normal": "норма",
     "good": "хорошо",
+    "excellent": "отлично",
 }
 
 
@@ -27,7 +28,9 @@ def bolt_level_from_seconds(seconds: float) -> str:
         return "below"
     if seconds < 30:
         return "normal"
-    return "good"
+    if seconds <= 40:
+        return "good"
+    return "excellent"
 
 
 class Database:

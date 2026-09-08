@@ -5,21 +5,12 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery
 
 from bot.config import Settings
-from bot.content import (
-    BOLT_HOWTO,
-    TEST_DESC,
-    TEST_Q1,
-    TEST_Q2,
-    TEST_Q3,
-    TEST_START,
-    TEST_START_SLEEP,
-)
+from bot.content import BOLT_HOWTO, BOLT_INTRO, BOLT_START_HINT, format_bolt_seconds
 from bot.db import Database
 from bot.keyboards import (
     bolt_ready_keyboard,
     bolt_start_keyboard,
     bolt_stop_keyboard,
-    options_keyboard,
 )
 from bot.services.funnel import send_result
 from bot.states import FunnelStates
@@ -34,6 +25,7 @@ async def _user_branch(db: Database, user_id: int) -> str:
 
 async def _start_bolt(callback: CallbackQuery, state: FSMContext) -> None:
     await state.set_state(FunnelStates.bolt_intro)
+    await callback.message.answer(BOLT_INTRO)
     await callback.message.answer(
         BOLT_HOWTO,
         reply_markup=bolt_ready_keyboard(),
@@ -47,76 +39,16 @@ async def test_start(
     db: Database,
 ) -> None:
     branch = await _user_branch(db, callback.from_user.id)
+    await callback.answer()
     await state.update_data(answers={}, branch=branch)
-
-    desc = TEST_DESC.get(branch)
-    if desc:
-        await callback.message.answer(desc)
-
-    # Lifestyle-вопросы только для ветки «Сон»
-    if branch == "sleep":
-        await state.set_state(FunnelStates.q1)
-        await callback.message.answer(TEST_START_SLEEP)
-        await callback.message.answer(
-            TEST_Q1["text"],
-            reply_markup=options_keyboard("q1", TEST_Q1["options"]),
-        )
-    else:
-        await callback.message.answer(TEST_START)
-        await _start_bolt(callback, state)
-
-    await callback.answer()
-
-
-@router.callback_query(FunnelStates.q1, F.data.startswith("q1:"))
-async def on_q1(callback: CallbackQuery, state: FSMContext) -> None:
-    answer = callback.data.split(":", 1)[1]
-    data = await state.get_data()
-    answers = data.get("answers", {})
-    answers["sleep_hours"] = answer
-    await state.update_data(answers=answers)
-    await state.set_state(FunnelStates.q2)
-    await callback.message.edit_text(f"{TEST_Q1['text']}\n\n✓")
-    await callback.message.answer(
-        TEST_Q2["text"],
-        reply_markup=options_keyboard("q2", TEST_Q2["options"]),
-    )
-    await callback.answer()
-
-
-@router.callback_query(FunnelStates.q2, F.data.startswith("q2:"))
-async def on_q2(callback: CallbackQuery, state: FSMContext) -> None:
-    answer = callback.data.split(":", 1)[1]
-    data = await state.get_data()
-    answers = data.get("answers", {})
-    answers["night_wakes"] = answer
-    await state.update_data(answers=answers)
-    await state.set_state(FunnelStates.q3)
-    await callback.message.edit_text(f"{TEST_Q2['text']}\n\n✓")
-    await callback.message.answer(
-        TEST_Q3["text"],
-        reply_markup=options_keyboard("q3", TEST_Q3["options"]),
-    )
-    await callback.answer()
-
-
-@router.callback_query(FunnelStates.q3, F.data.startswith("q3:"))
-async def on_q3(callback: CallbackQuery, state: FSMContext) -> None:
-    answer = callback.data.split(":", 1)[1]
-    data = await state.get_data()
-    answers = data.get("answers", {})
-    answers["mouth_breathing"] = answer
-    await state.update_data(answers=answers)
-    await callback.message.edit_text(f"{TEST_Q3['text']}\n\n✓")
     await _start_bolt(callback, state)
-    await callback.answer()
 
 
 @router.callback_query(FunnelStates.bolt_intro, F.data == "bolt:ready")
 async def bolt_ready(callback: CallbackQuery, state: FSMContext) -> None:
     await state.set_state(FunnelStates.bolt_waiting_start)
     await callback.message.edit_text(
-        "На выдохе зажми нос и нажми СТАРТ.",
+        BOLT_START_HINT,
         reply_markup=bolt_start_keyboard(),
     )
     await callback.answer()
@@ -146,7 +78,7 @@ async def bolt_stop(
         await callback.answer("Сначала нажми СТАРТ", show_alert=True)
         return
 
-    seconds = max(0.0, time.monotonic() - float(started))
+    seconds = float(round(max(0.0, time.monotonic() - float(started))))
     answers = data.get("answers", {})
     branch = data.get("branch") or await _user_branch(db, callback.from_user.id)
 
@@ -155,11 +87,10 @@ async def bolt_stop(
         answers=answers,
         bolt_seconds=seconds,
         branch=branch,
-        # promo_code=settings.promo_code,  # промокод пока отключён
         promo_code="",
     )
 
-    await callback.message.edit_text(f"BOLT: {seconds:.1f} сек")
+    await callback.message.edit_text(format_bolt_seconds(seconds))
     await send_result(
         callback.message,
         branch=branch,

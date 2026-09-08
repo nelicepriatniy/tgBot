@@ -4,6 +4,7 @@ import sys
 
 from aiogram import Bot, Dispatcher
 from aiogram.client.default import DefaultBotProperties
+from aiogram.client.session.aiohttp import AiohttpSession
 from aiogram.enums import ParseMode
 from aiogram.fsm.storage.memory import MemoryStorage
 
@@ -34,6 +35,7 @@ async def main() -> None:
     bot = Bot(
         token=settings.bot_token,
         default=DefaultBotProperties(parse_mode=ParseMode.HTML),
+        session=AiohttpSession(timeout=180),
     )
     dp = Dispatcher(storage=MemoryStorage())
     dp.update.middleware(InjectMiddleware(db, settings))

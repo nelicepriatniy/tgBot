@@ -4,15 +4,14 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, Message
 
 from bot.config import Settings
-from bot.content import BRANCH_NAMES, CHOOSE_BRANCH, NEED_SUBSCRIBE
+from bot.content import BRANCH_NAMES, CHOOSE_BRANCH, NEED_SUBSCRIBE, RESTART_HINT
 from bot.db import BRANCHES, Database
 from bot.keyboards import (
     START_BTN,
     branch_keyboard,
     main_reply_keyboard,
-    start_test_keyboard,
 )
-from bot.services.funnel import send_gate, send_lead_magnet
+from bot.services.funnel import continue_after_branch, send_greeting, send_lead_magnet
 from bot.services.subscription import is_subscribed
 from bot.states import FunnelStates
 
@@ -28,31 +27,6 @@ def _parse_branch(payload: str | None) -> str | None:
     return value if value in BRANCHES else None
 
 
-async def _continue_after_branch(
-    message: Message,
-    *,
-    user_id: int,
-    branch: str,
-    user: dict,
-    state: FSMContext,
-    db: Database,
-    settings: Settings,
-    returning: bool = False,
-) -> None:
-    if settings.require_subscription:
-        subscribed = await is_subscribed(message.bot, settings.channel_id, user_id)
-        if not subscribed:
-            await state.set_state(FunnelStates.waiting_subscription)
-            await state.update_data(branch=branch)
-            await send_gate(message, branch, settings)
-            return
-        await db.mark_subscribed(user_id, branch)
-
-    # Всегда отправляем лид-магнит (если файл есть), даже при повторном входе
-    await send_lead_magnet(message, branch, db, user_id)
-    await state.set_state(FunnelStates.ready_for_test)
-
-
 async def run_start(
     message: Message,
     state: FSMContext,
@@ -62,36 +36,30 @@ async def run_start(
 ) -> None:
     await state.clear()
     branch = _parse_branch(payload)
-    user = await db.upsert_user(
+    await db.upsert_user(
         telegram_id=message.from_user.id,
         username=message.from_user.username,
         branch=branch,
     )
 
-    await message.answer(
-        "Нажми «Старт» в любой момент, чтобы начать заново.",
-        reply_markup=main_reply_keyboard(),
-    )
+    await message.answer(RESTART_HINT, reply_markup=main_reply_keyboard())
+    await send_greeting(message)
 
-    if not branch and not user.get("branch"):
-        await message.answer(CHOOSE_BRANCH, reply_markup=branch_keyboard())
+    if branch:
+        await db.set_branch(message.from_user.id, branch)
+        await continue_after_branch(
+            message,
+            user_id=message.from_user.id,
+            branch=branch,
+            state=state,
+            db=db,
+            settings=settings,
+            confirm=True,
+        )
         return
 
-    branch = branch or user["branch"]
-    if not user.get("branch"):
-        await db.set_branch(message.from_user.id, branch)
-        user = await db.get_user(message.from_user.id) or user
-
-    await _continue_after_branch(
-        message,
-        user_id=message.from_user.id,
-        branch=branch,
-        user=user,
-        state=state,
-        db=db,
-        settings=settings,
-        returning=True,
-    )
+    await state.set_state(FunnelStates.choosing_branch)
+    await message.answer(CHOOSE_BRANCH, reply_markup=branch_keyboard())
 
 
 @router.message(CommandStart())
@@ -152,24 +120,26 @@ async def choose_branch(
     if branch not in BRANCHES:
         await callback.answer("Неизвестная ветка", show_alert=True)
         return
+    await callback.answer()
     await db.upsert_user(
         telegram_id=callback.from_user.id,
         username=callback.from_user.username,
         branch=branch,
     )
     await db.set_branch(callback.from_user.id, branch)
-    user = await db.get_user(callback.from_user.id) or {}
-    await callback.message.edit_text(f"Выбрано: {BRANCH_NAMES[branch]}")
-    await _continue_after_branch(
+    try:
+        await callback.message.edit_text(f"Выбрано: {BRANCH_NAMES[branch]}")
+    except Exception:
+        await callback.message.answer(f"Выбрано: {BRANCH_NAMES[branch]}")
+    await continue_after_branch(
         callback.message,
         user_id=callback.from_user.id,
         branch=branch,
-        user=user,
         state=state,
         db=db,
         settings=settings,
+        confirm=False,
     )
-    await callback.answer()
 
 
 @router.callback_query(F.data == "gate:check")
@@ -199,5 +169,7 @@ async def gate_check(
 
     await db.mark_subscribed(callback.from_user.id, branch)
     await callback.answer("Подписка подтверждена")
-    await send_lead_magnet(callback.message, branch, db, callback.from_user.id)
+    await send_lead_magnet(
+        callback.message, branch, db, callback.from_user.id, announce=True
+    )
     await state.set_state(FunnelStates.ready_for_test)

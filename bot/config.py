@@ -21,6 +21,9 @@ class Settings(BaseSettings):
     # promo_code: str = "DYHANIE30"  # промокод пока отключён
     promo_code: str = ""
 
+    channel_post_tests_url: str = "https://t.me/dyshyhorosho/11"
+    channel_post_breathe_url: str = "https://t.me/dyshyhorosho/17"
+
     purchase_url_sleep: str = "https://example.com/sleep"
     purchase_url_longevity: str = "https://example.com/longevity"
     purchase_url_sport: str = "https://example.com/sport"

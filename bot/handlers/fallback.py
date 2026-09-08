@@ -13,12 +13,12 @@ async def any_text(message: Message, state: FSMContext) -> None:
     current = await state.get_state()
     if current is not None:
         await message.answer(
-            "Используй кнопки под сообщением или нажми «Старт», чтобы начать сначала.",
+            "Используй кнопки под сообщением или нажми «Старт», чтобы начать заново 🔄",
             reply_markup=main_reply_keyboard(),
         )
         return
 
     await message.answer(
-        "Нажми кнопку «Старт» ниже, чтобы начать 👇",
+        "Нажми «Старт» в любой момент, чтобы начать заново 🔄",
         reply_markup=main_reply_keyboard(),
     )
