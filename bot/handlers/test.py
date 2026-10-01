@@ -1,11 +1,18 @@
+import logging
 import time
 
 from aiogram import F, Router
 from aiogram.fsm.context import FSMContext
-from aiogram.types import CallbackQuery
+from aiogram.types import CallbackQuery, FSInputFile
 
 from bot.config import Settings
-from bot.content import BOLT_HOWTO, BOLT_INTRO, BOLT_START_HINT, format_bolt_seconds
+from bot.content import (
+    BOLT_HOWTO,
+    BOLT_INTRO,
+    BOLT_START_HINT,
+    format_bolt_seconds,
+    resolve_bolt_circle,
+)
 from bot.db import Database
 from bot.keyboards import (
     bolt_ready_keyboard,
@@ -16,6 +23,7 @@ from bot.services.funnel import send_result
 from bot.states import FunnelStates
 
 router = Router(name="test")
+logger = logging.getLogger(__name__)
 
 
 async def _user_branch(db: Database, user_id: int) -> str:
@@ -23,8 +31,26 @@ async def _user_branch(db: Database, user_id: int) -> str:
     return (user or {}).get("branch") or "sleep"
 
 
+async def _send_bolt_circle(callback: CallbackQuery) -> None:
+    path = resolve_bolt_circle()
+    if path is None:
+        return
+    try:
+        await callback.message.answer_video_note(FSInputFile(path))
+    except Exception:
+        logger.exception("Failed to send BOLT video note %s", path)
+        try:
+            await callback.message.answer_video(
+                FSInputFile(path),
+                supports_streaming=True,
+            )
+        except Exception:
+            logger.exception("Failed to send BOLT video fallback %s", path)
+
+
 async def _start_bolt(callback: CallbackQuery, state: FSMContext) -> None:
     await state.set_state(FunnelStates.bolt_intro)
+    await _send_bolt_circle(callback)
     await callback.message.answer(BOLT_INTRO)
     await callback.message.answer(
         BOLT_HOWTO,

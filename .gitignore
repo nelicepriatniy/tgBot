@@ -11,3 +11,6 @@ venv/
 # исходники слишком тяжёлые для GitHub; бот отправляет *.compressed.mp4
 content/videos/*.mp4
 !content/videos/*.compressed.mp4
+
+# ТЗ / рабочие заметки
+chat bot new.txt
