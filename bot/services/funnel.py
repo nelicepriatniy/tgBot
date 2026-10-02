@@ -30,6 +30,7 @@ from bot.content import (
 )
 from bot.db import Database
 from bot.keyboards import channel_post_keyboard, gate_keyboard, start_test_keyboard
+from bot.services.media import has_cached, send_cached_document, send_cached_video
 from bot.services.subscription import is_subscribed
 from bot.states import FunnelStates
 
@@ -38,15 +39,18 @@ logger = logging.getLogger(__name__)
 
 async def _send_video_or_text(
     message: Message,
+    *,
+    key: str,
     path: Path | None,
     caption: str | None,
 ) -> None:
     if path is not None:
         try:
-            await message.answer_video(
-                FSInputFile(path),
+            await send_cached_video(
+                message,
+                key=key,
+                path=path,
                 caption=caption,
-                supports_streaming=True,
             )
             return
         except Exception:
@@ -56,12 +60,22 @@ async def _send_video_or_text(
 
 
 async def send_greeting(message: Message) -> None:
-    await _send_video_or_text(message, resolve_video("greeting"), GREETING)
+    await _send_video_or_text(
+        message,
+        key="video:greeting",
+        path=resolve_video("greeting"),
+        caption=GREETING,
+    )
 
 
 async def send_branch_intro(message: Message, branch: str) -> None:
     caption = BRANCH_DESC.get(branch, "")
-    await _send_video_or_text(message, resolve_video(branch), caption)
+    await _send_video_or_text(
+        message,
+        key=f"video:{branch}",
+        path=resolve_video(branch),
+        caption=caption,
+    )
 
 
 async def send_gate(message: Message, branch: str, settings: Settings) -> None:
@@ -109,14 +123,16 @@ async def send_lead_magnet(
     if announce:
         await message.answer(ALREADY_SUBSCRIBED)
 
-    await message.answer(PREPARING_FILE)
-
     pdf_path = resolve_lead_pdf(branch)
     sent = False
     if pdf_path is not None:
+        if not has_cached(f"pdf:{branch}", pdf_path):
+            await message.answer(PREPARING_FILE)
         try:
-            await message.answer_document(
-                FSInputFile(pdf_path),
+            await send_cached_document(
+                message,
+                key=f"pdf:{branch}",
+                path=pdf_path,
                 caption=meta["caption"],
             )
             sent = True
