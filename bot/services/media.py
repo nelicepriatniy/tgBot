@@ -18,7 +18,7 @@ _cache: dict[str, dict] | None = None
 
 def _fingerprint(path: Path) -> str:
     st = path.stat()
-    return f"{st.st_size}:{int(st.st_mtime)}"
+    return f"{st.st_size}:{int(st.st_mtime)}:{path.name}"
 
 
 def _load() -> dict[str, dict]:
@@ -112,7 +112,10 @@ async def send_cached_document(
         except Exception:
             logger.warning("Cached document id expired for %s, re-uploading", key)
 
-    sent = await message.answer_document(FSInputFile(path), caption=caption)
+    sent = await message.answer_document(
+        FSInputFile(path, filename=path.name),
+        caption=caption,
+    )
     if sent.document and sent.document.file_id:
         set_file_id(key, path, sent.document.file_id)
         logger.info("Cached document file_id for %s", key)
